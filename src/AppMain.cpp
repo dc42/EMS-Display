@@ -45,7 +45,7 @@ extern "C" void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuf
 
 extern "C" void MainTask(void*) noexcept
 {
-	InitDisplay();
+	Display::Init();
 	for (;;) { }
 }
 
@@ -78,6 +78,7 @@ extern "C" void vApplicationTickHook(void) noexcept
 {
 	CoreSysTick();
 	WatchdogReset();							// kick the watchdog
+	Display::Tick();
 }
 
 // This is called from FreeRTOS to measure the CPU time used by a task. It is not essential.

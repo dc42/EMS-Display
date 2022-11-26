@@ -8,6 +8,9 @@
 #ifndef SRC_DISPLAY_H_
 #define SRC_DISPLAY_H_
 
-void InitDisplay() noexcept;
+namespace Display {
+	void Init() noexcept;
+	void Tick() noexcept;
+}
 
 #endif /* SRC_DISPLAY_H_ */
