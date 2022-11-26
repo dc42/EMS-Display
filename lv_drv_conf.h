@@ -14,6 +14,7 @@
 #define LV_DRV_CONF_H
 
 #include "lv_conf.h"
+#include "src/DisplayInterface.h"
 
 /*********************
  * DELAY INTERFACE
@@ -21,9 +22,9 @@
  
 extern void delay(uint32_t ms);
 
-#define LV_DRV_DELAY_INCLUDE <stdint.h>					/*Dummy include by default*/
-#define LV_DRV_DELAY_US(us)  delayMicroseconds(us)      /*Delay the given number of microseconds*/
-#define LV_DRV_DELAY_MS(ms)  delay(ms)       			/*Delay the given number of milliseconds*/
+#define LV_DRV_DELAY_INCLUDE 			<stdint.h>					// Dummy include by default
+#define LV_DRV_DELAY_US(us)  			delayMicroseconds(us)		// Delay the given number of microseconds
+#define LV_DRV_DELAY_MS(ms)  			delay(ms)       			// Delay the given number of milliseconds
 
 /*********************
  * DISPLAY INTERFACE
@@ -32,18 +33,16 @@ extern void delay(uint32_t ms);
 /*------------
  *  Common
  *------------*/
-#define LV_DRV_DISP_INCLUDE		   <stdint.h>			/*Dummy include by default*/
-#define LV_DRV_DISP_CMD_DATA(val)  qq1(val)    			/*Set the command/data pin to 'val'*/
-#define LV_DRV_DISP_RST(val)       qq2(val)    			/*Set the reset pin to 'val'*/
+#define LV_DRV_DISP_INCLUDE				<stdint.h>								// Dummy include by default
+#define LV_DRV_DISP_CMD_DATA(val)		WriteDisplayCommandNotDataPin(val)		// Set the command/data pin to 'val'
+#define LV_DRV_DISP_RST(val)			WriteDisplayNotResetPin(val) 			// Set the ~reset pin to 'val'
 
 /*------------------
  *  Parallel port
  *-----------------*/
-#define LV_DRV_DISP_PAR_CS(val)          qq3(val)   /*Set the Parallel port's Chip select to 'val'*/
-#define LV_DRV_DISP_PAR_SLOW             qq4()        /*Set low speed on the parallel port*/
-#define LV_DRV_DISP_PAR_FAST             qq5()        /*Set high speed on the parallel port*/
-#define LV_DRV_DISP_PAR_WR_WORD(data)    qq6(data)      /*Write a word to the parallel port*/
-#define LV_DRV_DISP_PAR_WR_ARRAY(adr, n) qq7(adr,n) /*Write 'n' bytes to Parallel ports from 'adr'*/
+#define LV_DRV_DISP_PAR_CS(val)          WriteDisplayCsPin(val)					// Set the Parallel port's Chip select to 'val'
+#define LV_DRV_DISP_PAR_WR_WORD(data)    WriteDisplayWord(data)					// Write a word to the parallel port
+#define LV_DRV_DISP_PAR_WR_ARRAY(adr, n) WriteDisplayArray(adr, n)				// Write 'n' bytes to Parallel ports from 'adr'
 
 /***************************
  * INPUT DEVICE INTERFACE
@@ -52,7 +51,7 @@ extern void delay(uint32_t ms);
 /*----------
  *  Common
  *----------*/
-#define LV_DRV_INDEV_INCLUDE		<stdint.h>			/*Dummy include by default*/
+#define LV_DRV_INDEV_INCLUDE			<stdint.h>								// Dummy include by default
 #define LV_DRV_INDEV_RST(val)    /*pin_x_set(val)*/     /*Set the reset pin to 'val'*/
 #define LV_DRV_INDEV_IRQ_READ    0 /*pn_x_read()*/      /*Read the IRQ pin*/
 
