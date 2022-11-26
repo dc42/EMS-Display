@@ -8,39 +8,101 @@
 #include <Core.h>
 #include <syscalls.h>
 #include <RP2040/Devices.h>
-#include <lvgl.h>
+#include <TaskPriorities.h>
+#include <Display.h>
+#include <hardware/timer.h>
 
-constexpr unsigned int DISP_HOR_RES = 800;
-constexpr unsigned int DISP_VER_RES = 480;
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf1[DISP_HOR_RES * DISP_VER_RES / 10];                        /*Declare a buffer for 1/10 screen size*/
+// Main task data
+constexpr unsigned int MainTaskStackWords = 500;
+static Task<MainTaskStackWords> mainTask;
+static Mutex mallocMutex;
 
+// Idle task data
+constexpr unsigned int IdleTaskStackWords = 50;					// currently we don't use the idle talk for anything, so this can be quite small
+static Task<IdleTaskStackWords> idleTask;
 
+extern "C" void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize) noexcept
+{
+	*ppxIdleTaskTCBBuffer = idleTask.GetTaskMemory();
+	*ppxIdleTaskStackBuffer = idleTask.GetStackBase();
+	*pulIdleTaskStackSize = idleTask.GetStackSize();
+}
+
+#if configUSE_TIMERS
+
+// Timer task data
+constexpr unsigned int TimerTaskStackWords = 60;
+static Task<TimerTaskStackWords> timerTask;
+
+extern "C" void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer, StackType_t **ppxTimerTaskStackBuffer, uint32_t *pulTimerTaskStackSize) noexcept
+{
+    *ppxTimerTaskTCBBuffer = timerTask.GetTaskMemory();
+    *ppxTimerTaskStackBuffer = timerTask.GetStackBase();
+    *pulTimerTaskStackSize = timerTask.GetStackSize();
+}
+
+#endif
+
+extern "C" void MainTask(void*) noexcept
+{
+	InitDisplay();
+	for (;;) { }
+}
+
+// Program entry point after initialisation
 void AppMain() noexcept
 {
 	CoreInit();
 	DeviceInit();
 
-	lv_disp_draw_buf_init(&draw_buf, buf1, nullptr, DISP_HOR_RES * DISP_VER_RES / 10);  /*Initialize the display buffer.*/
-	//TODO
+	// Initialise the tasks
+	idleTask.AddToList();			// add the FreeRTOS internal tasks to the task list
+
+#if configUSE_TIMERS
+	timerTask.AddToList();
+#endif
+
+	// Initialise watchdog clock
+	WatchdogInit();
+
+	// Create the startup task and memory allocation mutex
+	mainTask.Create(MainTask, "MAIN", nullptr, TaskPriority::SpinPriority);
+	mallocMutex.Create("Malloc");
+
+	vTaskStartScheduler();			// doesn't return
+	while (true) { }
+}
+
+// System tick hook, called from FreeRTOS tick handler
+extern "C" void vApplicationTickHook(void) noexcept
+{
+	CoreSysTick();
+	WatchdogReset();							// kick the watchdog
+}
+
+// This is called from FreeRTOS to measure the CPU time used by a task. It is not essential.
+extern "C" uint32_t StepTimerGetTimerTicks() noexcept
+{
+	return time_us_32();
+}
+
+// Function called by FreeRTOS and internally to reset the run-time counter and return the number of timer ticks since it was last reset
+extern "C" uint32_t TaskResetRunTimeCounter() noexcept
+{
+	static uint32_t whenLastReset = 0;
+	const uint32_t now = time_us_32();
+	const uint32_t ret = now - whenLastReset;
+	whenLastReset = now;
+	return ret;
+}
+
+// Stack overflow hook, called from FreeRTOS if a stack overflow is detected
+extern "C" void vApplicationStackOverflowHook() noexcept
+{
 	for (;;) { }
 }
 
-extern "C" void vApplicationTickHook()
-{
-
-}
-
-extern "C" void vApplicationStackOverflowHook()
-{
-
-}
-
-extern "C" uint32_t StepTimerGetTimerTicks()
-{
-	return 0;
-}
-
+// This is called if an assertion within FreeRTOS fails
 extern "C" void vAssertCalled(uint32_t ulLine, const char *pcFile) noexcept
 {
 	for (;;) { }
