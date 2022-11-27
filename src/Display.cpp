@@ -32,6 +32,7 @@ void my_disp_flush(lv_disp_drv_t * disp, const lv_area_t * area, lv_color_t * co
 void Display::Init() noexcept
 {
 	DisplayPortsInit();
+	lv_init();
 	lv_disp_draw_buf_init(&draw_buf, buf1, nullptr, DISP_HOR_RES * DISP_VER_RES / 10);  /*Initialize the display buffer.*/
 	ssd1963_init();
 	lv_disp_drv_init(&disp_drv);			/*Basic initialization*/

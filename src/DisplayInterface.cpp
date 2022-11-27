@@ -7,12 +7,14 @@
 
 #include "DisplayInterface.h"
 #include "Pins.h"
+#include <Core.h>
 
 // Initialise the ports that control the display
 void DisplayPortsInit() noexcept
 {
 	pinMode(DisplayNotResetPin, OUTPUT_HIGH);
 	pinMode(DisplayCsPin, OUTPUT_HIGH);
+	pinMode(DisplayCommandNotDataPin, OUTPUT_HIGH);
 	pinMode(DisplayReadPin, OUTPUT_HIGH);
 	pinMode(DisplayWritePin, OUTPUT_HIGH);
 	pinMode(DisplayBacklightPin, OUTPUT_HIGH);
@@ -44,6 +46,10 @@ void WriteDisplayCsPin(bool val) noexcept
 void WriteDisplayWord(uint16_t data) noexcept
 {
 	digitalWrite(DisplayLatchHighDataPin, true);
+	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);		// Put the low word on the bus
+	delayMicroseconds(2);
+	digitalWrite(DisplayLatchHighDataPin, false);
+	delayMicroseconds(2);
 	if constexpr(DisplayLowestDataPin <= 8)
 	{
 		gpio_put_masked(0x000000FF << DisplayLowestDataPin, data >> (8 - DisplayLowestDataPin));
@@ -52,8 +58,7 @@ void WriteDisplayWord(uint16_t data) noexcept
 	{
 		gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << (DisplayLowestDataPin - 8));
 	}
-	digitalWrite(DisplayLatchHighDataPin, false);
-	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);
+	delayMicroseconds(2);
 	digitalWrite(DisplayWritePin, false);
 	delayMicroseconds(10);
 	digitalWrite(DisplayWritePin, true);
@@ -72,6 +77,16 @@ void WriteDisplayArray(const uint16_t *adr, unsigned int n) noexcept
 void SetBacklight(bool on) noexcept
 {
 	digitalWrite(DisplayBacklightPin, on);
+}
+
+void DelayMilliseconds(uint32_t ms) noexcept
+{
+	delay(ms);
+}
+
+void DelayMicroseconds(uint32_t us) noexcept
+{
+	delayMicroseconds(us);
 }
 
 // End

@@ -18,7 +18,7 @@ void LedDriver::Init() noexcept
 
 void LedDriver::SetColour(uint8_t red, uint8_t green, uint8_t blue) noexcept
 {
-	driver->SetColour(((uint32_t)red << 24) | ((uint32_t)green << 16) | ((uint32_t)blue << 8), NumLeds);
+	driver->SetColour(((uint32_t)green << 24) | ((uint32_t)red << 16) | ((uint32_t)blue << 8), NumLeds);
 }
 
 // End

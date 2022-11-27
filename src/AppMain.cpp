@@ -74,24 +74,14 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 	serialUSB.Start();
 	LedDriver::Init();
 	DisplayPortsInit();
-	LedDriver::SetColour(0, 0, 255);
-#if 0
-	for (uint32_t i = 1; i <= 255; ++i)
+	for (unsigned int i = 0; i < 5; ++i)
 	{
-		for (uint32_t j = 0; (i << j) < (1 << 24); ++j)
-		{
-			const uint32_t col = i << j;
-			LedDriver::SetColour((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF);
-			for (unsigned int k = 0; k < 100; ++k)
-			{
-				delayMicroseconds(1000);
-			}
-		}
+		LedDriver::SetColour(0, 0, 255);
+		delay(500);
+		LedDriver::SetColour(0, 255, 0);
+//		serialUSB.printf("Hello!\n");
+		delay(500);
 	}
-#endif
-	serialUSB.printf("Hello!\n");
-	delay(1000);
-	LedDriver::SetColour(0, 255, 0);
 
 	Display::Init();
 	Display::HelloWorld();
@@ -124,7 +114,7 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 
 	// Initialise watchdog clock
 	watchdog_start_tick(XOSC_MHZ);
-//	watchdog_enable(1000, true);
+	watchdog_enable(1000, true);
 
 	vTaskStartScheduler();			// doesn't return
 	while (true) { }
@@ -134,9 +124,7 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 extern "C" void vApplicationTickHook(void) noexcept
 {
 	CoreSysTick();
-//	SetBacklight(false);
-//	LedDriver::SetColour(255, 255, 255);
-//	watchdog_update();
+	watchdog_update();
 	Display::Tick();
 }
 
@@ -174,7 +162,7 @@ extern "C" void vAssertCalled(uint32_t ulLine, const char *pcFile) noexcept
 extern "C" void isr_hardfault() noexcept /*__attribute__((naked))*/;
 void isr_hardfault() noexcept
 {
-	LedDriver::SetColour(255, 0, 0);
+	LedDriver::SetColour(255, 0, 0);			// LEDs to red
 	for (;;) { }
 }
 

@@ -17,6 +17,8 @@ extern "C" {
 # define noexcept
 #endif
 
+void DelayMilliseconds(uint32_t ms) noexcept;
+void DelayMicroseconds(uint32_t us) noexcept;
 void DisplayPortsInit() noexcept;										// Initialise the ports that control the display
 void WriteDisplayCommandNotDataPin(bool val) noexcept;					// Set the command/data pin to 'val'
 void WriteDisplayNotResetPin(bool val) noexcept; 						// Set the ~reset pin to 'val'
