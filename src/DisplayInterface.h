@@ -23,6 +23,7 @@ void WriteDisplayNotResetPin(bool val) noexcept; 						// Set the ~reset pin to 
 void WriteDisplayCsPin(bool val) noexcept;								// Set the Parallel port's Chip select to 'val'
 void WriteDisplayWord(uint16_t data) noexcept;							// Write a word to the parallel port
 void WriteDisplayArray(const uint16_t *adr, unsigned int n) noexcept;	// Write 'n' bytes to Parallel ports from 'adr'
+void SetBacklight(bool on) noexcept;
 
 #ifdef __cplusplus
 }

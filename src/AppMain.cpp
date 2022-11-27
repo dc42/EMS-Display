@@ -6,20 +6,46 @@
  */
 
 #include <Core.h>
-#include <syscalls.h>
 #include <RP2040/Devices.h>
 #include <TaskPriorities.h>
 #include <Display.h>
+#include <DisplayInterface.h>
+#include <LedDriver.h>
 #include <hardware/timer.h>
+#include <malloc.h>
+
+#include <FreeRTOS.h>
+#include <task.h>
+#include <freertos_task_additions.h>
+
+#include <syscalls.h>
+#include <hardware/watchdog.h>
 
 // Main task data
-constexpr unsigned int MainTaskStackWords = 500;
+constexpr unsigned int MainTaskStackWords = 1000;
 static Task<MainTaskStackWords> mainTask;
 static Mutex mallocMutex;
 
 // Idle task data
-constexpr unsigned int IdleTaskStackWords = 50;					// currently we don't use the idle talk for anything, so this can be quite small
+constexpr unsigned int IdleTaskStackWords = 200;				// currently we don't use the idle task for anything, so this can be quite small
 static Task<IdleTaskStackWords> idleTask;
+
+// Make malloc/free thread safe. We must use a recursive mutex for it.
+extern "C" void __malloc_lock (struct _reent *_r) noexcept
+{
+	if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)		// don't take mutex if scheduler not started or suspended
+	{
+		mallocMutex.Take();
+	}
+}
+
+extern "C" void __malloc_unlock (struct _reent *_r) noexcept
+{
+	if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)		// don't release mutex if scheduler not started or suspended
+	{
+		mallocMutex.Release();
+	}
+}
 
 extern "C" void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize) noexcept
 {
@@ -43,8 +69,30 @@ extern "C" void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuf
 
 #endif
 
-extern "C" void MainTask(void*) noexcept
+extern "C" [[noreturn]] void MainTask(void*) noexcept
 {
+	serialUSB.Start();
+	LedDriver::Init();
+	DisplayPortsInit();
+	LedDriver::SetColour(0, 0, 255);
+#if 0
+	for (uint32_t i = 1; i <= 255; ++i)
+	{
+		for (uint32_t j = 0; (i << j) < (1 << 24); ++j)
+		{
+			const uint32_t col = i << j;
+			LedDriver::SetColour((col >> 16) & 0xFF, (col >> 8) & 0xFF, col & 0xFF);
+			for (unsigned int k = 0; k < 100; ++k)
+			{
+				delayMicroseconds(1000);
+			}
+		}
+	}
+#endif
+	serialUSB.printf("Hello!\n");
+	delay(1000);
+	LedDriver::SetColour(0, 255, 0);
+
 	Display::Init();
 	Display::HelloWorld();
 	for (;;)
@@ -54,8 +102,12 @@ extern "C" void MainTask(void*) noexcept
 }
 
 // Program entry point after initialisation
-void AppMain() noexcept
+[[noreturn]] void AppMain() noexcept
 {
+	// Initialise systick (needed for delayMicroseconds calls to work before FreeRTOS starts up)
+	SysTick->LOAD = ((SystemCoreClockFreq/1000) - 1) << SysTick_LOAD_RELOAD_Pos;
+	SysTick->CTRL = (1 << SysTick_CTRL_ENABLE_Pos) | (1 << SysTick_CTRL_CLKSOURCE_Pos);
+
 	CoreInit();
 	DeviceInit();
 
@@ -66,12 +118,13 @@ void AppMain() noexcept
 	timerTask.AddToList();
 #endif
 
-	// Initialise watchdog clock
-	WatchdogInit();
-
 	// Create the startup task and memory allocation mutex
 	mainTask.Create(MainTask, "MAIN", nullptr, TaskPriority::SpinPriority);
 	mallocMutex.Create("Malloc");
+
+	// Initialise watchdog clock
+	watchdog_start_tick(XOSC_MHZ);
+//	watchdog_enable(1000, true);
 
 	vTaskStartScheduler();			// doesn't return
 	while (true) { }
@@ -81,7 +134,9 @@ void AppMain() noexcept
 extern "C" void vApplicationTickHook(void) noexcept
 {
 	CoreSysTick();
-	WatchdogReset();							// kick the watchdog
+//	SetBacklight(false);
+//	LedDriver::SetColour(255, 255, 255);
+//	watchdog_update();
 	Display::Tick();
 }
 
@@ -104,12 +159,22 @@ extern "C" uint32_t TaskResetRunTimeCounter() noexcept
 // Stack overflow hook, called from FreeRTOS if a stack overflow is detected
 extern "C" void vApplicationStackOverflowHook() noexcept
 {
+//	SetBacklight(false);
 	for (;;) { }
 }
 
 // This is called if an assertion within FreeRTOS fails
 extern "C" void vAssertCalled(uint32_t ulLine, const char *pcFile) noexcept
 {
+//	SetBacklight(false);
+	for (;;) { }
+}
+
+// The fault handler implementation calls a function called hardFaultDispatcher()
+extern "C" void isr_hardfault() noexcept /*__attribute__((naked))*/;
+void isr_hardfault() noexcept
+{
+	LedDriver::SetColour(255, 0, 0);
 	for (;;) { }
 }
 

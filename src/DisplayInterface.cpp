@@ -16,6 +16,10 @@ void DisplayPortsInit() noexcept
 	pinMode(DisplayReadPin, OUTPUT_HIGH);
 	pinMode(DisplayWritePin, OUTPUT_HIGH);
 	pinMode(DisplayBacklightPin, OUTPUT_HIGH);
+	for (unsigned int i = 0; i < 8; ++i)
+	{
+		pinMode(DisplayLowestDataPin + i, OUTPUT_LOW);
+	}
 }
 
 // Set the command/data pin to 'val'
@@ -63,6 +67,11 @@ void WriteDisplayArray(const uint16_t *adr, unsigned int n) noexcept
 		WriteDisplayWord(*adr++);
 		--n;
 	}
+}
+
+void SetBacklight(bool on) noexcept
+{
+	digitalWrite(DisplayBacklightPin, on);
 }
 
 // End

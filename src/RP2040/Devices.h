@@ -10,20 +10,10 @@
 
 #include <Core.h>
 
-#if RP2040
-
 #define SUPPORT_USB		1		// needed by SerialCDC.h
 #include <SerialCDC.h>
 
 extern SerialCDC serialUSB;
-
-#else
-
-#include <AsyncSerial.h>
-
-extern AsyncSerial uart0;
-
-#endif
 
 void DeviceInit() noexcept;
 

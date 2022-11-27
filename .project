@@ -3,6 +3,9 @@
 	<name>EMS-Display-firmware</name>
 	<comment></comment>
 	<projects>
+		<project>CoreN2G</project>
+		<project>FreeRTOS</project>
+		<project>RRFLibraries</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

@@ -20,6 +20,15 @@ constexpr Pin DisplayLatchHighDataPin = GpioPin(8);
 constexpr Pin DisplayReadPin = GpioPin(9);
 constexpr Pin DisplayWritePin = GpioPin(10);
 constexpr Pin DisplayBacklightPin = GpioPin(14);
-constexpr unsigned int DisplayLowestDataPin = 0;
+constexpr Pin DisplayLowestDataPin = 0;
+
+constexpr Pin WS2812Pin = GpioPin(16);
+constexpr unsigned int NumLeds = 2;
+
+constexpr DmaChannel DmacChanWS2812 = 0;
+constexpr DmaChannel DmacChanAdcRx = 1;
+
+// DMA priorities, higher is better. RP2040 has only 0 and 1.
+constexpr DmaPriority DmacPrioAdcRx = 1;
 
 #endif /* SRC_PINS_H_ */
