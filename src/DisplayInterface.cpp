@@ -15,6 +15,7 @@ void DisplayPortsInit() noexcept
 	pinMode(DisplayCsPin, OUTPUT_HIGH);
 	pinMode(DisplayReadPin, OUTPUT_HIGH);
 	pinMode(DisplayWritePin, OUTPUT_HIGH);
+	pinMode(DisplayBacklightPin, OUTPUT_HIGH);
 }
 
 // Set the command/data pin to 'val'

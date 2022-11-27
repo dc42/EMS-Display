@@ -46,7 +46,11 @@ extern "C" void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuf
 extern "C" void MainTask(void*) noexcept
 {
 	Display::Init();
-	for (;;) { }
+	Display::HelloWorld();
+	for (;;)
+	{
+		Display::Spin();
+	}
 }
 
 // Program entry point after initialisation

@@ -19,6 +19,7 @@ constexpr Pin DisplayCsPin = GpioPin(12);
 constexpr Pin DisplayLatchHighDataPin = GpioPin(8);
 constexpr Pin DisplayReadPin = GpioPin(9);
 constexpr Pin DisplayWritePin = GpioPin(10);
+constexpr Pin DisplayBacklightPin = GpioPin(14);
 constexpr unsigned int DisplayLowestDataPin = 0;
 
 #endif /* SRC_PINS_H_ */
