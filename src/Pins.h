@@ -16,7 +16,7 @@ typedef uint8_t Pin;
 constexpr Pin DisplayNotResetPin = GpioPin(13);
 constexpr Pin DisplayCommandNotDataPin = GpioPin(11);
 constexpr Pin DisplayCsPin = GpioPin(12);
-constexpr Pin DisplayLatchHighDataPin = GpioPin(8);
+constexpr Pin DisplayLatchLowDataPin = GpioPin(8);
 constexpr Pin DisplayReadPin = GpioPin(9);
 constexpr Pin DisplayWritePin = GpioPin(10);
 constexpr Pin DisplayBacklightPin = GpioPin(14);

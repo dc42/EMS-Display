@@ -5,6 +5,7 @@
  *      Author: David
  */
 
+#include <Core.h>
 #include "Display.h"
 #include "DisplayInterface.h"
 #include <lvgl.h>

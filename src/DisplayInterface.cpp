@@ -17,6 +17,7 @@ void DisplayPortsInit() noexcept
 	pinMode(DisplayCommandNotDataPin, OUTPUT_HIGH);
 	pinMode(DisplayReadPin, OUTPUT_HIGH);
 	pinMode(DisplayWritePin, OUTPUT_HIGH);
+	pinMode(DisplayLatchLowDataPin, OUTPUT_LOW);
 	pinMode(DisplayBacklightPin, OUTPUT_HIGH);
 	for (unsigned int i = 0; i < 8; ++i)
 	{
@@ -45,10 +46,10 @@ void WriteDisplayCsPin(bool val) noexcept
 // Write a word to the parallel port
 void WriteDisplayWord(uint16_t data) noexcept
 {
-	digitalWrite(DisplayLatchHighDataPin, true);
+	digitalWrite(DisplayLatchLowDataPin, true);
 	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);		// Put the low word on the bus
 	delayMicroseconds(2);
-	digitalWrite(DisplayLatchHighDataPin, false);
+	digitalWrite(DisplayLatchLowDataPin, false);
 	delayMicroseconds(2);
 	if constexpr(DisplayLowestDataPin <= 8)
 	{
