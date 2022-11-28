@@ -9,7 +9,6 @@
 #include <RP2040/Devices.h>
 #include <TaskPriorities.h>
 #include <Display.h>
-#include <DisplayInterface.h>
 #include <LedDriver.h>
 #include <hardware/timer.h>
 #include <malloc.h>
@@ -73,8 +72,7 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 {
 	serialUSB.Start();
 	LedDriver::Init();
-	DisplayPortsInit();
-	for (unsigned int i = 0; i < 5; ++i)
+	for (unsigned int i = 0; i < 2; ++i)
 	{
 		LedDriver::SetColour(0, 0, 255);
 		delay(500);
