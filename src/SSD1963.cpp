@@ -23,11 +23,17 @@ constexpr bool Is24bit = true;
 //  Latch pulse width 100ns @ 2V, 20ns @ 4.5V
 //  Data setup time to trailing edge of latch pulse 65ns @ 2V, 13ns @ 3.3V
 //  Data hold time from trailing edge of latch pulse 5ns
-//  Propagation delay D to Q when LE high 190ns @ 2V, 38ns @ 4.5V
+//  Propagation delay D to Q when LE high, or from LE to Q 190ns @ 2V, 38ns @ 4.5V
+// 74AHC573 timing requirements:
+//  Latch pulse width 15ns
+//  Data setup time to trailing edge of latch pulse 3.5ns
+//  Data hold time from trailing edge of latch pulse 1.5ns
+//  Propagation delay D to Q when LE high, or from LE to Q 15ns @ 3 to 3.5V
 
 inline void PulseWritePin() noexcept
 {
 	fastDigitalWriteLow(DisplayWritePin);
+	// Put enough NOPs here to meet the SSD1963 write low time
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
@@ -37,13 +43,15 @@ inline void PulseWritePin() noexcept
 
 inline void LCD_Write_Bus16(uint16_t data) noexcept
 {
-	digitalWrite(DisplayLatchLowDataPin, true);
+	fastDigitalWriteHigh(DisplayLatchLowDataPin);
 	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);		// Put the low word on the bus
+	// Put enough NOPs here to meet the 74HC573 setup time
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
-	digitalWrite(DisplayLatchLowDataPin, false);
+	fastDigitalWriteLow(DisplayLatchLowDataPin);
+	// The hold time is only 5ns so we don't need a delay here
 	if constexpr(DisplayLowestDataPin <= 8)
 	{
 		gpio_put_masked(0x000000FF << DisplayLowestDataPin, data >> (8 - DisplayLowestDataPin));
@@ -57,8 +65,9 @@ inline void LCD_Write_Bus16(uint16_t data) noexcept
 
 inline void LCD_Write_Bus8(uint8_t data) noexcept
 {
-	digitalWrite(DisplayLatchLowDataPin, true);
+	fastDigitalWriteHigh(DisplayLatchLowDataPin);
 	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);		// Put the low word on the bus
+	// Put enough NOPs here to meet the 74HC573 propagation time
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
@@ -90,6 +99,26 @@ inline void LCD_Write_COM_DATA16(uint8_t com1, uint16_t dat1)
 	LCD_Write_DATA16(dat1);
 }
 
+inline void LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1)
+{
+	LCD_Write_COM(com1);
+	LCD_Write_DATA8(dat1);
+}
+
+inline void SetXY(uint16_t xLow, uint16_t xHigh, uint16_t yLow, uint16_t yHigh) noexcept
+{
+	fastDigitalWriteLow(DisplayCsPin);
+	LCD_Write_COM_DATA8(0x2A, xLow >> 8);
+	LCD_Write_Bus8(0x00FF & xLow);
+	LCD_Write_Bus8(xHigh >> 8);
+	LCD_Write_Bus8(0x00FF & xHigh);
+
+	LCD_Write_COM_DATA8(0x002B, yLow >> 8);
+	LCD_Write_Bus8(0x00FF & yLow);
+	LCD_Write_Bus8(yHigh >> 8);
+	LCD_Write_Bus8(0x00FF & yHigh);
+}
+
 void SSD1963::Init() noexcept
 {
 	// Set up the output pins
@@ -99,15 +128,14 @@ void SSD1963::Init() noexcept
 	pinMode(DisplayReadPin, OUTPUT_HIGH);
 	pinMode(DisplayWritePin, OUTPUT_HIGH);
 	pinMode(DisplayLatchLowDataPin, OUTPUT_LOW);
-	pinMode(DisplayBacklightPin, OUTPUT_HIGH);
+	pinMode(DisplayBacklightPin, OUTPUT_LOW);
 	for (unsigned int i = 0; i < 8; ++i)
 	{
 		pinMode(DisplayLowestDataPin + i, OUTPUT_LOW);
 	}
 
 	// Hardware reset the display
-	fastDigitalWriteHigh(DisplayNotResetPin);
-	delay(5);
+	delay(15);
 	fastDigitalWriteLow(DisplayNotResetPin);
 	delay(15);
 	fastDigitalWriteHigh(DisplayNotResetPin);
@@ -124,7 +152,7 @@ void SSD1963::Init() noexcept
 	LCD_Write_DATA8(0x01);
 	delay(10);
 
-	LCD_Write_COM(0xE0);
+	LCD_Write_COM(0xE0);		// start PLL
 	LCD_Write_DATA8(0x03);
 	delay(10);
 
@@ -172,76 +200,87 @@ void SSD1963::Init() noexcept
 	LCD_Write_DATA8(0x07);	    //GPIO3=input, GPIO[2:0]=output
 	LCD_Write_Bus8(0x01);		//GPIO0 normal
 
-//	setOrientation(orient, isER);
-
 	LCD_Write_COM(0xF0);		//pixel data interface
 	LCD_Write_DATA8(0x03);		//0x03: 16-bit (565 format), 0x02: 16-bit packed
 
 	delay(1);
 
-//	setXY(0, 0, 799, 479);
-	LCD_Write_COM(0x29);		//display on
-
-	LCD_Write_COM(0xBE);		//set PWM for B/L
-	LCD_Write_DATA8(0x06);
-	LCD_Write_Bus8(0xf0);
-	LCD_Write_Bus8(0x01);
-	LCD_Write_Bus8(0xf0);
-	LCD_Write_Bus8(0x00);
-	LCD_Write_Bus8(0x00);
-
-	LCD_Write_COM(0xd0);
-	LCD_Write_DATA8(0x0d);
-
+	// Clear the display
+	SetXY(0, SSD1963_HOR_RES - 1, 0, SSD1963_VER_RES - 1);
 	LCD_Write_COM(0x2C);
+	LCD_Write_DATA16(0);		// write first pixel
+	for (unsigned int i = 0; i < SSD1963_HOR_RES * SSD1963_VER_RES - 1; ++i)
+	{
+		asm volatile("nop");
+		asm volatile("nop");
+		asm volatile("nop");
+		asm volatile("nop");
+		PulseWritePin();		// write remaining pixels
+	}
+
+	LCD_Write_COM(0x29);		// display on
+
+	LCD_Write_COM(0xBE);		// set PWM for B/L
+	LCD_Write_DATA8(0x06);		// PWM frequency = PLL clock / (256 * (6 + 1) /256
+	LCD_Write_Bus8(0xf0);		// PWm duty cycle
+	LCD_Write_Bus8(0x01);		// PWM enabled and controlled by host
+	LCD_Write_Bus8(0xf0);		// Manual brightness value
+	LCD_Write_Bus8(0x00);		// Minimum brightness
+	LCD_Write_Bus8(0x00);		// Brightness prescaler for transition effects
+
+	LCD_Write_COM(0xd0);		// Dynamic brightness configuration
+	LCD_Write_DATA8(0x0d);		// DNC enable, aggressive mode
 
 	fastDigitalWriteHigh(DisplayCsPin);
+
+	delay(1000);
+	fastDigitalWriteHigh(DisplayBacklightPin);
 }
 
 void SSD1963::Flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p) noexcept
 {
-    // Return if the area is out the screen
-    if (area->x2 < 0) return;
-    if (area->y2 < 0) return;
-    if (area->x1 > SSD1963_HOR_RES - 1) return;
-    if (area->y1 > SSD1963_VER_RES - 1) return;
+	// Truncate the area to the screen
+	int32_t act_x1 = max<lv_coord_t>(area->x1, 0);
+	int32_t act_y1 = max<lv_coord_t>(area->y1, 0);
+	int32_t act_x2 = min<lv_coord_t>(area->x2, SSD1963_HOR_RES - 1);
+	int32_t act_y2 = min<lv_coord_t>(area->y2, SSD1963_VER_RES - 1);
+	if (act_x1 <= act_x2 && act_y1 <= act_y2)
+	{
+		// Set the rectangular area
+		fastDigitalWriteLow(DisplayCsPin);
+		SetXY(act_x1, act_x2, act_y1, act_y2);
 
-    // Truncate the area to the screen
-    int32_t act_x1 = area->x1 < 0 ? 0 : area->x1;
-    int32_t act_y1 = area->y1 < 0 ? 0 : area->y1;
-    int32_t act_x2 = area->x2 > SSD1963_HOR_RES - 1 ? SSD1963_HOR_RES - 1 : area->x2;
-    int32_t act_y2 = area->y2 > SSD1963_VER_RES - 1 ? SSD1963_VER_RES - 1 : area->y2;
+		LCD_Write_COM(0x2c);
+		const uint16_t full_w = area->x2 - area->x1 + 1;
+		const uint16_t act_w = act_x2 - act_x1 + 1;
 
-    // Set the rectangular area
-	fastDigitalWriteLow(DisplayCsPin);
-	LCD_Write_COM_DATA16(0x2A, act_x1 >> 8);
-	LCD_Write_Bus16(0x00FF & act_x1);
-	LCD_Write_Bus16(act_x2 >> 8);
-	LCD_Write_Bus16(0x00FF & act_x2);
+		fastDigitalWriteHigh(DisplayDataNotCommandPin);
 
-	LCD_Write_COM_DATA16(0x002B, act_y1 >> 8);
-	LCD_Write_Bus16(0x00FF & act_y1);
-	LCD_Write_Bus16(act_y2 >> 8);
-	LCD_Write_Bus16(0x00FF & act_y2);
+		for (int16_t i = act_y1; i <= act_y2; i++)
+		{
+			const uint16_t *p = (uint16_t*)color_p;
+			uint16_t lastPixel = *p++;
+			LCD_Write_Bus16(lastPixel);
+			for (uint16_t j = 1; j < act_w; ++j)
+			{
+				const uint16_t newPixel = *p++;
+				if (newPixel == lastPixel)
+				{
+					// Might needs some NOPs here
+					PulseWritePin();
+				}
+				else
+				{
+					lastPixel = newPixel;
+					LCD_Write_Bus16(newPixel);
+				}
+			}
+			color_p += full_w;
+		}
+		fastDigitalWriteHigh(DisplayCsPin);
+	}
 
-	LCD_Write_COM(0x2c);
-    const uint16_t full_w = area->x2 - area->x1 + 1;
-
-	fastDigitalWriteHigh(DisplayDataNotCommandPin);
-    const uint16_t act_w = act_x2 - act_x1 + 1;
-
-    for (int16_t i = act_y1; i <= act_y2; i++)
-    {
-    	const uint16_t *p = (uint16_t*)color_p;
-    	for (uint16_t j = 0; j < act_w; ++j)
-    	{
-    		LCD_Write_Bus16(*p++);
-    	}
-        color_p += full_w;
-    }
-	fastDigitalWriteHigh(DisplayCsPin);
-
-    lv_disp_flush_ready(disp_drv);
+	lv_disp_flush_ready(disp_drv);
 }
 
 // End
