@@ -8,6 +8,7 @@
 #include <Core.h>
 #include "Display.h"
 #include "SSD1963.h"
+#include "Pins.h"
 
 #include <lvgl.h>
 #include <src/hal/lv_hal_disp.h>
@@ -16,8 +17,10 @@ constexpr unsigned int DISP_HOR_RES = SSD1963_HOR_RES;
 constexpr unsigned int DISP_VER_RES = SSD1963_VER_RES;
 
 static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf1[DISP_HOR_RES * DISP_VER_RES / 10];                        /*Declare a buffer for 1/10 screen size*/
-static lv_disp_drv_t disp_drv;				/* Descriptor of a display driver*/
+static lv_color_t buf1[DISP_HOR_RES * DISP_VER_RES / 10];	/*Declare a buffer for 1/10 screen size*/
+static lv_disp_drv_t disp_drv;								/* Descriptor of a display driver*/
+
+static lv_obj_t * label;
 
 // Initialise the display
 void Display::Init() noexcept
@@ -40,6 +43,14 @@ void Display::Tick() noexcept
 
 void Display::Spin() noexcept
 {
+	if (digitalRead(MotionSensorPin))
+	{
+		lv_label_set_text(label, "Detected motion");
+	}
+	else
+	{
+		lv_label_set_text(label, "Idle");
+	}
 	lv_timer_handler();
 }
 
@@ -49,7 +60,7 @@ void Display::HelloWorld() noexcept
 	lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0xff << 3), LV_PART_MAIN);
 
 	/*Create a white label, set its text and align it to the center*/
-	lv_obj_t * label = lv_label_create(lv_scr_act());
+	label = lv_label_create(lv_scr_act());
 	lv_label_set_text(label, "Hello world");
 	lv_obj_set_style_text_color(lv_scr_act(), lv_color_hex(0xffffff), LV_PART_MAIN);
 	lv_obj_set_style_text_font(lv_scr_act(), &lv_font_montserrat_28, LV_PART_MAIN);  /*Set a larger font*/

@@ -72,14 +72,11 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 {
 	serialUSB.Start();
 	LedDriver::Init();
-	for (unsigned int i = 0; i < 2; ++i)
-	{
-		LedDriver::SetColour(0, 0, 255);
-		delay(500);
-		LedDriver::SetColour(0, 255, 0);
-//		serialUSB.printf("Hello!\n");
-		delay(500);
-	}
+	LedDriver::SetColour(255, 0, 0);		// red
+	delay(500);
+	LedDriver::SetColour(0, 255, 0);		// green
+	delay(500);
+	LedDriver::SetColour(0, 0, 255);		// blue
 
 	Display::Init();
 	Display::HelloWorld();

@@ -22,6 +22,8 @@ constexpr Pin DisplayWritePin = GpioPin(10);
 constexpr Pin DisplayBacklightPin = GpioPin(14);
 constexpr Pin DisplayLowestDataPin = 0;
 
+constexpr Pin MotionSensorPin = GpioPin(15);
+
 constexpr Pin WS2812Pin = GpioPin(16);
 constexpr unsigned int NumLeds = 2;
 
