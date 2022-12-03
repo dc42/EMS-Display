@@ -9,7 +9,8 @@
 #include <RP2040/Devices.h>
 #include <TaskPriorities.h>
 #include <Display.h>
-#include <LedDriver.h>
+#include <Drivers/LedDriver.h>
+#include <Drivers/Buzzer.h>
 #include <hardware/timer.h>
 #include <malloc.h>
 
@@ -71,6 +72,8 @@ extern "C" void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuf
 extern "C" [[noreturn]] void MainTask(void*) noexcept
 {
 	serialUSB.Start();
+	Display::Init();
+	Buzzer::Init();
 	LedDriver::Init();
 	LedDriver::SetColour(255, 0, 0);		// red
 	delay(500);
@@ -78,7 +81,8 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 	delay(500);
 	LedDriver::SetColour(0, 0, 255);		// blue
 
-	Display::Init();
+	Buzzer::Beep(2000, 500);
+
 	Display::HelloWorld();
 	for (;;)
 	{
@@ -121,6 +125,7 @@ extern "C" void vApplicationTickHook(void) noexcept
 	CoreSysTick();
 	watchdog_update();
 	Display::Tick();
+	Buzzer::Tick();
 }
 
 // This is called from FreeRTOS to measure the CPU time used by a task. It is not essential.

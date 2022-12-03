@@ -7,7 +7,8 @@
 
 #include <Core.h>
 #include "Display.h"
-#include "SSD1963.h"
+#include <Drivers/SSD1963.h>
+#include <Drivers/Buzzer.h>
 #include "Pins.h"
 
 #include <lvgl.h>
@@ -43,14 +44,22 @@ void Display::Tick() noexcept
 
 void Display::Spin() noexcept
 {
+	static bool detectedMotion = false;
 	if (digitalRead(MotionSensorPin))
 	{
-		lv_label_set_text(label, "Detected motion");
+		if (!detectedMotion)
+		{
+			Buzzer::Beep(2000, 200);
+			lv_label_set_text(label, "Detected motion");
+			detectedMotion = true;
+		}
 	}
-	else
+	else if (detectedMotion)
 	{
 		lv_label_set_text(label, "Idle");
+		detectedMotion = false;
 	}
+
 	lv_timer_handler();
 }
 

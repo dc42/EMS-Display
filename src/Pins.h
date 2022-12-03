@@ -27,6 +27,10 @@ constexpr Pin MotionSensorPin = GpioPin(15);
 constexpr Pin WS2812Pin = GpioPin(16);
 constexpr unsigned int NumLeds = 2;
 
+constexpr Pin BuzzerLowPin = GpioPin(26);
+constexpr Pin BuzzerHighPin = GpioPin(27);
+constexpr unsigned int PwmNumber = 5;						// the PWM number to which both buzzer pins are connected
+
 constexpr DmaChannel DmacChanWS2812 = 0;
 constexpr DmaChannel DmacChanAdcRx = 1;
 
