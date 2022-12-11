@@ -12,7 +12,7 @@ namespace Display {
 	void Init() noexcept;
 	void Tick() noexcept;
 	void Spin() noexcept;
-	void HelloWorld() noexcept;
+	void Start() noexcept;
 }
 
 #endif /* SRC_DISPLAY_H_ */

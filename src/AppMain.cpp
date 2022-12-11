@@ -83,7 +83,7 @@ extern "C" [[noreturn]] void MainTask(void*) noexcept
 
 	Buzzer::Beep(2000, 500);
 
-	Display::HelloWorld();
+	Display::Start();
 	for (;;)
 	{
 		Display::Spin();

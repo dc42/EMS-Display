@@ -63,17 +63,32 @@ void Display::Spin() noexcept
 	lv_timer_handler();
 }
 
-void Display::HelloWorld() noexcept
+void Display::Start() noexcept
 {
-	/*Change the active screen's background color*/
-	lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0xff << 3), LV_PART_MAIN);
+	constexpr lv_coord_t tileWidth = DISP_HOR_RES/3;
+	constexpr lv_coord_t tileHeight = DISP_VER_RES/2;
+    static constexpr lv_coord_t col_dsc[] = {tileWidth, tileWidth, tileWidth, LV_GRID_TEMPLATE_LAST};
+    static constexpr lv_coord_t row_dsc[] = {tileHeight, tileHeight, LV_GRID_TEMPLATE_LAST};
 
-	/*Create a white label, set its text and align it to the center*/
-	label = lv_label_create(lv_scr_act());
-	lv_label_set_text(label, "Hello world");
-	lv_obj_set_style_text_color(lv_scr_act(), lv_color_hex(0xffffff), LV_PART_MAIN);
-	lv_obj_set_style_text_font(lv_scr_act(), &lv_font_montserrat_28, LV_PART_MAIN);  /*Set a larger font*/
-	lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+    // Create a grid hat fills the screen
+    lv_obj_set_style_grid_column_dsc_array(lv_scr_act(), col_dsc, 0);
+    lv_obj_set_style_grid_row_dsc_array(lv_scr_act(), row_dsc, 0);
+    lv_obj_set_layout(lv_scr_act(), LV_LAYOUT_GRID);
+
+    for (uint32_t i = 0; i < 6; i++)
+    {
+        const uint8_t col = i % 3;
+        const uint8_t row = i / 3;
+
+        lv_obj_t * const btn = lv_btn_create(lv_scr_act());
+        // Stretch the cell horizontally and vertically
+        // Set span to 1 to make the cell 1 column/row sized
+        lv_obj_set_grid_cell(btn, LV_GRID_ALIGN_STRETCH, col, 1, LV_GRID_ALIGN_STRETCH, row, 1);
+
+        label = lv_label_create(btn);
+        lv_label_set_text_fmt(label, "c%u, r%u", col, row);
+        lv_obj_center(label);
+    }
 }
 
 // End
