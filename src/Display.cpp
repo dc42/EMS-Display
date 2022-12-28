@@ -44,6 +44,12 @@ void Display::Tick() noexcept
 
 void Display::Spin() noexcept
 {
+#if 0
+	// Test code to do continuous write to the screen
+	lv_obj_clean(lv_scr_act());
+	lv_timer_handler();
+	Start();
+#else
 	static bool detectedMotion = false;
 	if (digitalRead(MotionSensorPin))
 	{
@@ -59,7 +65,7 @@ void Display::Spin() noexcept
 		lv_label_set_text(label, "Idle");
 		detectedMotion = false;
 	}
-
+#endif
 	lv_timer_handler();
 }
 

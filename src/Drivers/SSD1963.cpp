@@ -30,11 +30,10 @@ constexpr bool Is24bit = true;
 //  Data hold time from trailing edge of latch pulse 1.5ns
 //  Propagation delay D to Q when LE high, or from LE to Q 15ns @ 3 to 3.5V
 
-inline void PulseWritePin() noexcept
+void PulseWritePin() noexcept
 {
 	fastDigitalWriteLow(DisplayWritePin);
-	// Put enough NOPs here to meet the SSD1963 write low time
-	asm volatile("nop");
+	// Put enough NOPs here to meet the SSD1963 write low time (12ns)
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
@@ -45,8 +44,7 @@ inline void LCD_Write_Bus16(uint16_t data) noexcept
 {
 	fastDigitalWriteHigh(DisplayLatchLowDataPin);
 	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);		// Put the low word on the bus
-	// Put enough NOPs here to meet the 74HC573 setup time
-	asm volatile("nop");
+	// Put enough NOPs here to meet the 74HC573 setup time (13ns)
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
@@ -67,11 +65,11 @@ inline void LCD_Write_Bus8(uint8_t data) noexcept
 {
 	fastDigitalWriteHigh(DisplayLatchLowDataPin);
 	gpio_put_masked(0x000000FF << DisplayLowestDataPin, data << DisplayLowestDataPin);		// Put the low word on the bus
-	// Put enough NOPs here to meet the 74HC573 propagation time
+	// Put enough NOPs here to meet the 74HC573 propagation time (15ns)
 	asm volatile("nop");
 	asm volatile("nop");
 	asm volatile("nop");
-	asm volatile("nop");
+	fastDigitalWriteLow(DisplayLatchLowDataPin);				// this is not needed but it makes the signal cleaner on the 'scope
 	PulseWritePin();
 }
 
@@ -107,7 +105,6 @@ inline void LCD_Write_COM_DATA8(uint8_t com1, uint8_t dat1)
 
 inline void SetXY(uint16_t xLow, uint16_t xHigh, uint16_t yLow, uint16_t yHigh) noexcept
 {
-	fastDigitalWriteLow(DisplayCsPin);
 	LCD_Write_COM_DATA8(0x2A, xLow >> 8);
 	LCD_Write_Bus8(0x00FF & xLow);
 	LCD_Write_Bus8(xHigh >> 8);
@@ -127,7 +124,9 @@ void SSD1963::Init() noexcept
 	pinMode(DisplayDataNotCommandPin, OUTPUT_HIGH);
 	pinMode(DisplayReadPin, OUTPUT_HIGH);
 	pinMode(DisplayWritePin, OUTPUT_HIGH);
+	SetDriveStrength(DisplayWritePin, 2);
 	pinMode(DisplayLatchLowDataPin, OUTPUT_LOW);
+	SetDriveStrength(DisplayLatchLowDataPin, 2);
 	pinMode(DisplayBacklightPin, OUTPUT_LOW);
 	for (unsigned int i = 0; i < 8; ++i)
 	{
@@ -144,15 +143,16 @@ void SSD1963::Init() noexcept
 	// Initialise the display
 	fastDigitalWriteLow(DisplayCsPin);
 
-	LCD_Write_COM(0xE2);		//PLL multiplier, set PLL clock to 120M
-	LCD_Write_DATA8(0x1E);	    //N=0x36 for 6.5M, 0x23 for 10M crystal (ER 5": 0x23)
-	LCD_Write_Bus8(0x02);
-	LCD_Write_Bus8(0x54);
+	LCD_Write_COM(0xE2);		// PLL multiplier, set PLL clock to 100M (M=35 N=2 for 10MHz crystal)
+	LCD_Write_DATA8(0x1D);	    // N=0x36 for 6.5M, 0x23 for 10M crystal (ER 5": 0x23)
+	LCD_Write_DATA8(0x22);
+	LCD_Write_DATA8(0x04);
+
 	LCD_Write_COM(0xE0);		// PLL enable
 	LCD_Write_DATA8(0x01);
-	delay(10);
+	delay(10);					// need 100us here according to datasheet
 
-	LCD_Write_COM(0xE0);		// start PLL
+	LCD_Write_COM(0xE0);		// use PLL as system clock
 	LCD_Write_DATA8(0x03);
 	delay(10);
 
@@ -213,8 +213,6 @@ void SSD1963::Init() noexcept
 	{
 		asm volatile("nop");
 		asm volatile("nop");
-		asm volatile("nop");
-		asm volatile("nop");
 		PulseWritePin();		// write remaining pixels
 	}
 
@@ -248,16 +246,23 @@ void SSD1963::Flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t
 	{
 		// Set the rectangular area
 		fastDigitalWriteLow(DisplayCsPin);
-		SetXY(act_x1, act_x2, act_y1, act_y2);
 
+#if 1
+		SetXY(act_x1, act_x2, act_y1, act_y2);
 		LCD_Write_COM(0x2c);
+		fastDigitalWriteHigh(DisplayDataNotCommandPin);
+#endif
+
 		const uint16_t full_w = area->x2 - area->x1 + 1;
 		const uint16_t act_w = act_x2 - act_x1 + 1;
 
-		fastDigitalWriteHigh(DisplayDataNotCommandPin);
-
 		for (int16_t i = act_y1; i <= act_y2; i++)
 		{
+#if 0
+			SetXY(act_x1, act_x2, i, i);
+			LCD_Write_COM(0x2c);
+			fastDigitalWriteHigh(DisplayDataNotCommandPin);
+#endif
 			const uint16_t *p = (uint16_t*)color_p;
 			uint16_t lastPixel = *p++;
 			LCD_Write_Bus16(lastPixel);
@@ -266,7 +271,6 @@ void SSD1963::Flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t
 				const uint16_t newPixel = *p++;
 				if (newPixel == lastPixel)
 				{
-					// Might needs some NOPs here
 					PulseWritePin();
 				}
 				else
