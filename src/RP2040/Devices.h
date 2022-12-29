@@ -11,7 +11,7 @@
 #include <Core.h>
 
 #define SUPPORT_USB		1		// needed by SerialCDC.h
-#include <SerialCDC.h>
+#include <SerialCDC_tusb.h>
 
 extern SerialCDC serialUSB;
 

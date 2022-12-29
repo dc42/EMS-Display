@@ -47,4 +47,7 @@ constexpr DmaChannel DmacChanAdcRx = 1;
 // DMA priorities, higher is better. RP2040 has only 0 and 1.
 constexpr DmaPriority DmacPrioAdcRx = 1;
 
+// NVIC priorities
+constexpr NvicPriority NvicPriorityUSB = 3;
+
 #endif /* SRC_PINS_H_ */

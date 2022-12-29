@@ -16,8 +16,8 @@
 
 #include <TaskPriorities.h>
 #include <RTOSIface/RTOSIface.h>
-#include <RP2040USB.h>
-#include <SerialCDC.h>
+#include <TinyUsbInterface.h>
+#include <SerialCDC_tusb.h>
 #include <Pins.h>
 
 // Analog input support
@@ -29,7 +29,7 @@ static Task<AnalogInTaskStackWords> analogInTask;
 constexpr size_t UsbDeviceTaskStackWords = 300;
 static Task<UsbDeviceTaskStackWords> usbDeviceTask;
 
-SerialCDC serialUSB(NoPin, 512, 512);
+SerialCDC serialUSB;
 
 void DeviceInit() noexcept
 {
@@ -39,8 +39,8 @@ void DeviceInit() noexcept
 	analogInTask.Create(AnalogIn::TaskLoop, "AIN", nullptr, TaskPriority::AinPriority);
 #endif
 
-	__USBStart();
-	usbDeviceTask.Create(UsbDeviceTask, "USBD", nullptr, TaskPriority::UsbPriority);
+	CoreUsbInit(NvicPriorityUSB);
+	usbDeviceTask.Create(CoreUsbDeviceTask, "USBD", nullptr, TaskPriority::UsbPriority);
 }
 
 #endif

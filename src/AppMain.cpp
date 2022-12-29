@@ -71,7 +71,7 @@ extern "C" void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuf
 
 extern "C" [[noreturn]] void MainTask(void*) noexcept
 {
-	serialUSB.Start();
+	serialUSB.Start(NoPin);
 	Display::Init();
 	Buzzer::Init();
 	LedDriver::Init();
