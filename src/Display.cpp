@@ -9,6 +9,7 @@
 #include "Display.h"
 #include <Drivers/SSD1963.h>
 #include <Drivers/Buzzer.h>
+#include <Drivers/TouchPanel.h>
 #include "Pins.h"
 
 #include <lvgl.h>
@@ -18,10 +19,37 @@ constexpr unsigned int DISP_HOR_RES = SSD1963_HOR_RES;
 constexpr unsigned int DISP_VER_RES = SSD1963_VER_RES;
 
 static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf1[DISP_HOR_RES * DISP_VER_RES / 10];	/*Declare a buffer for 1/10 screen size*/
-static lv_disp_drv_t disp_drv;								/* Descriptor of a display driver*/
+static lv_color_t buf1[DISP_HOR_RES * DISP_VER_RES / 10];	// Declare a buffer for 1/10 screen size
+static lv_disp_drv_t disp_drv;								// Descriptor of a display driver
+
+static lv_indev_drv_t indev_drv;							// Descriptor of an input device
+static lv_indev_t * my_indev = nullptr;
 
 static lv_obj_t * label;
+
+static void ReadTouchPanel(lv_indev_drv_t *drv, lv_indev_data_t*data) noexcept
+{
+	uint16_t x, y;
+	static bool repeat = false;
+	if (TouchPanel::Read(x, y, repeat))
+	{
+		data->point.x = x;
+		data->point.y = y;
+		data->state = LV_INDEV_STATE_PRESSED;
+	}
+	else
+	{
+		data->state = LV_INDEV_STATE_RELEASED;
+	}
+}
+
+static void TouchPanelFeedback(lv_indev_drv_t *drv, uint8_t inEvent) noexcept
+{
+	if (inEvent == LV_EVENT_CLICKED)
+	{
+		Buzzer::Beep(3000, 50);
+	}
+}
 
 // Initialise the display
 void Display::Init() noexcept
@@ -35,6 +63,13 @@ void Display::Init() noexcept
 	disp_drv.hor_res = DISP_HOR_RES;		/*Set the horizontal resolution of the display*/
 	disp_drv.ver_res = DISP_VER_RES;		/*Set the vertical resolution of the display*/
 	lv_disp_drv_register(&disp_drv);		/*Finally register the driver*/
+
+	TouchPanel::Init(SSD1963_HOR_RES, SSD1963_VER_RES);
+	lv_indev_drv_init(&indev_drv);      	/*Basic initialization*/
+	indev_drv.type = LV_INDEV_TYPE_POINTER;	/*Device type*/
+	indev_drv.read_cb = ReadTouchPanel;		/*See below.*/
+	indev_drv.feedback_cb = TouchPanelFeedback;
+	my_indev = lv_indev_drv_register(&indev_drv);	/*Register the driver in LVGL and save the created input device object*/
 }
 
 void Display::Tick() noexcept
@@ -69,6 +104,17 @@ void Display::Spin() noexcept
 	lv_timer_handler();
 }
 
+static void event_cb(lv_event_t * e)
+{
+    LV_LOG_USER("Clicked");
+
+    static uint32_t cnt = 1;
+    lv_obj_t * btn = lv_event_get_target(e);
+    lv_obj_t * label = lv_obj_get_child(btn, 0);
+    lv_label_set_text_fmt(label, "%" LV_PRIu32, cnt);
+    cnt++;
+}
+
 void Display::Start() noexcept
 {
 	constexpr lv_coord_t tileWidth = DISP_HOR_RES/3;
@@ -87,6 +133,10 @@ void Display::Start() noexcept
         const uint8_t row = i / 3;
 
         lv_obj_t * const btn = lv_btn_create(lv_scr_act());
+        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+        lv_obj_add_event_cb(btn, event_cb, LV_EVENT_CLICKED, nullptr);
+
         // Stretch the cell horizontally and vertically
         // Set span to 1 to make the cell 1 column/row sized
         lv_obj_set_grid_cell(btn, LV_GRID_ALIGN_STRETCH, col, 1, LV_GRID_ALIGN_STRETCH, row, 1);

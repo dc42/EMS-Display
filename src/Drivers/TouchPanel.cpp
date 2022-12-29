@@ -25,9 +25,9 @@ static void WriteCommand(uint8_t command) noexcept
 		digitalWrite(TouchDinPin, command & 0x80);
 		command <<= 1;
 		delayNanoseconds(100);					// need 100ns setup time from writing data to clock rising edge
-		digitalWrite(TouchClkPin, true);
+		fastDigitalWriteHigh(TouchClkPin);
 		delayNanoseconds(200);					// minimum 200ns clock high width
-		digitalWrite(TouchClkPin, false);
+		fastDigitalWriteLow(TouchClkPin);
 		delayNanoseconds(100);					// need 200ns clock low time, but we will delay 100ns at the start of the next iteration
 	}
 }
@@ -147,11 +147,15 @@ void TouchPanel::Init(uint16_t xp, uint16_t yp, DisplayOrientation orientationAd
 
 	pressed = false;
 
-	pinMode(TouchClkPin, OUTPUT_HIGH);
+	pinMode(TouchClkPin, OUTPUT_LOW);
 	pinMode(TouchCsPin, OUTPUT_HIGH);
 	pinMode(TouchDinPin, OUTPUT_HIGH);
 	pinMode(TouchDoutPin, INPUT);
 	pinMode(TouchIrqPin, INPUT_PULLUP);
+
+	delay(10);
+	uint16_t dummy16;
+	getTouchData(false, dummy16);
 }
 
 // If the panel is touched, return the coordinates in x and y and return true; else return false
@@ -163,7 +167,7 @@ bool TouchPanel::Read(uint16_t &px, uint16_t &py, bool &repeat, uint16_t * null 
 
 	if (!digitalRead(TouchIrqPin))			// if screen is touched
 	{
-		digitalWrite(TouchCsPin, false);
+		fastDigitalWriteLow(TouchCsPin);
 		delayMicroseconds(100);				// allow the screen to settle
 		uint16_t tx;
 		if (getTouchData(false, tx))
@@ -202,7 +206,7 @@ bool TouchPanel::Read(uint16_t &px, uint16_t &py, bool &repeat, uint16_t * null 
 				}
 			}
 		}
-		digitalWrite(TouchCsPin, true);
+		fastDigitalWriteHigh(TouchCsPin);
 	}
 
 
