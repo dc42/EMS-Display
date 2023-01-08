@@ -45,7 +45,7 @@ static void ReadTouchPanel(lv_indev_drv_t *drv, lv_indev_data_t*data) noexcept
 
 static void TouchPanelFeedback(lv_indev_drv_t *drv, uint8_t inEvent) noexcept
 {
-	if (inEvent == LV_EVENT_CLICKED)
+	if (inEvent == LV_EVENT_PRESSED)
 	{
 		Buzzer::Beep(3000, 50);
 	}
@@ -64,7 +64,7 @@ void Display::Init() noexcept
 	disp_drv.ver_res = DISP_VER_RES;		/*Set the vertical resolution of the display*/
 	lv_disp_drv_register(&disp_drv);		/*Finally register the driver*/
 
-	TouchPanel::Init(SSD1963_HOR_RES, SSD1963_VER_RES);
+	TouchPanel::Init(SSD1963_HOR_RES, SSD1963_VER_RES, DisplayOrientation::SwapXY | DisplayOrientation::ReverseY);
 	lv_indev_drv_init(&indev_drv);      	/*Basic initialization*/
 	indev_drv.type = LV_INDEV_TYPE_POINTER;	/*Device type*/
 	indev_drv.read_cb = ReadTouchPanel;		/*See below.*/
@@ -79,12 +79,6 @@ void Display::Tick() noexcept
 
 void Display::Spin() noexcept
 {
-#if 0
-	// Test code to do continuous write to the screen
-	lv_obj_clean(lv_scr_act());
-	lv_timer_handler();
-	Start();
-#else
 	static bool detectedMotion = false;
 	if (digitalRead(MotionSensorPin))
 	{
@@ -100,7 +94,6 @@ void Display::Spin() noexcept
 		lv_label_set_text(label, "Idle");
 		detectedMotion = false;
 	}
-#endif
 	lv_timer_handler();
 }
 
@@ -117,25 +110,30 @@ static void event_cb(lv_event_t * e)
 
 void Display::Start() noexcept
 {
-	constexpr lv_coord_t tileWidth = DISP_HOR_RES/3;
-	constexpr lv_coord_t tileHeight = DISP_VER_RES/2;
+	constexpr lv_coord_t tileWidth = DISP_HOR_RES/3 - 21;
+	constexpr lv_coord_t tileHeight = DISP_VER_RES/2 - 28;
     static constexpr lv_coord_t col_dsc[] = {tileWidth, tileWidth, tileWidth, LV_GRID_TEMPLATE_LAST};
     static constexpr lv_coord_t row_dsc[] = {tileHeight, tileHeight, LV_GRID_TEMPLATE_LAST};
 
-    // Create a grid hat fills the screen
-    lv_obj_set_style_grid_column_dsc_array(lv_scr_act(), col_dsc, 0);
-    lv_obj_set_style_grid_row_dsc_array(lv_scr_act(), row_dsc, 0);
-    lv_obj_set_layout(lv_scr_act(), LV_LAYOUT_GRID);
+    // Create a grid that fills the screen
+    lv_obj_t * cont = lv_obj_create(lv_scr_act());
+    lv_obj_set_style_grid_column_dsc_array(cont, col_dsc, 0);
+    lv_obj_set_style_grid_row_dsc_array(cont, row_dsc, 0);
+    lv_obj_set_style_pad_row(cont, 10, 0);
+    lv_obj_set_style_pad_column(cont, 10, 0);
+    lv_obj_set_size(cont, DISP_HOR_RES, DISP_VER_RES);
+    lv_obj_center(cont);
+    lv_obj_set_layout(cont, LV_LAYOUT_GRID);
 
     for (uint32_t i = 0; i < 6; i++)
     {
         const uint8_t col = i % 3;
         const uint8_t row = i / 3;
 
-        lv_obj_t * const btn = lv_btn_create(lv_scr_act());
+        lv_obj_t * const btn = lv_btn_create(cont);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-        lv_obj_add_event_cb(btn, event_cb, LV_EVENT_CLICKED, nullptr);
+        lv_obj_add_event_cb(btn, event_cb, LV_EVENT_PRESSED, nullptr);
 
         // Stretch the cell horizontally and vertically
         // Set span to 1 to make the cell 1 column/row sized

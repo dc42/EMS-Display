@@ -23,4 +23,9 @@ enum DisplayOrientation : uint8_t
 	InvertBitmap = ReverseX
 };
 
+inline constexpr DisplayOrientation operator | (DisplayOrientation a, DisplayOrientation b) noexcept
+{
+	return (DisplayOrientation)((uint8_t)a | (uint8_t)b);
+}
+
 #endif /* DISPLAYORIENTATION_H_ */

@@ -17,6 +17,11 @@ static uint16_t scaleX, scaleY;
 static int16_t offsetX, offsetY;
 static bool pressed = false;
 
+constexpr uint32_t writeSetupTimeToLeadingEdge = 100;		// nanoseconds
+constexpr uint32_t readSetupTimeFromTrailingEdge = 200;
+constexpr uint32_t clockPulseWidth = 200;
+constexpr uint32_t clockPulseInterval = 200;
+
 // Send the first command in a chain. The chip latches the data bit on the rising edge of the clock. We have already set CS low.
 static void WriteCommand(uint8_t command) noexcept
 {
@@ -24,11 +29,11 @@ static void WriteCommand(uint8_t command) noexcept
 	{
 		digitalWrite(TouchDinPin, command & 0x80);
 		command <<= 1;
-		delayNanoseconds(100);					// need 100ns setup time from writing data to clock rising edge
+		delayNanoseconds(writeSetupTimeToLeadingEdge);							// need 100ns setup time from writing data to clock rising edge
 		fastDigitalWriteHigh(TouchClkPin);
-		delayNanoseconds(200);					// minimum 200ns clock high width
+		delayNanoseconds(clockPulseWidth);										// minimum 200ns clock high width
 		fastDigitalWriteLow(TouchClkPin);
-		delayNanoseconds(100);					// need 200ns clock low time, but we will delay 100ns at the start of the next iteration
+		delayNanoseconds(clockPulseInterval - writeSetupTimeToLeadingEdge);		// need 200ns clock low time, but we will delay 100ns at the start of the next iteration
 	}
 }
 
@@ -39,22 +44,26 @@ static uint16_t ReadData(uint8_t command) noexcept
 	uint16_t cmd = (uint16_t)command;
 	uint16_t data = 0;
 
-	for (uint8_t count=0; count<16; count++)
+	for (uint8_t count = 0; count < 16; count++)
 	{
-		digitalWrite(TouchDinPin, command & 0x8000);
+		digitalWrite(TouchDinPin, cmd & 0x8000);
 		cmd <<= 1;
-		delayNanoseconds(100);					// need 100ns setup time from writing data to clock rising edge
-		digitalWrite(TouchClkPin, true);
-		delayNanoseconds(200);					// minimum 200ns clock high width
-		digitalWrite(TouchClkPin, false);
+		delayNanoseconds(writeSetupTimeToLeadingEdge);							// need 100ns setup time from writing data to clock rising edge
+		fastDigitalWriteHigh(TouchClkPin);
+		delayNanoseconds(clockPulseWidth);										// minimum 200ns clock high width
+		fastDigitalWriteLow(TouchClkPin);
 		if (count < 12)
 		{
-			delayNanoseconds(200);				// need 200ns setup time from clock falling edge to reading data
+			delayNanoseconds(readSetupTimeFromTrailingEdge);					// need 200ns setup time from clock falling edge to reading data
 			data <<= 1;
 			if (digitalRead(TouchDoutPin))
 			{
 				data++;
 			}
+		}
+		else
+		{
+			delayNanoseconds(clockPulseInterval - writeSetupTimeToLeadingEdge);
 		}
 	}
 
@@ -67,7 +76,7 @@ static uint16_t diff(uint16_t a, uint16_t b) noexcept { return (a < b) ? b - a :
 // We need to allow the touch chip ADC input to settle. See TI app note http://www.ti.com/lit/pdf/sbaa036.
 static bool getTouchData(bool wantY, uint16_t &rslt) noexcept
 {
-	uint8_t command = (wantY) ? 0xD3 : 0x93;		// start, channel 5 (y) or 1 (x), 12-bit, differential mode, don't power down between conversions
+	const uint8_t command = (wantY) ? 0xD3 : 0x93;	// start, channel 5 (y) or 1 (x), 12-bit, differential mode, don't power down between conversions
 	WriteCommand(command);							// send the command
 	ReadData(command);								// discard the first result and send the same command again
 
@@ -148,14 +157,13 @@ void TouchPanel::Init(uint16_t xp, uint16_t yp, DisplayOrientation orientationAd
 	pressed = false;
 
 	pinMode(TouchClkPin, OUTPUT_LOW);
+	SetDriveStrength(TouchClkPin, 2);
 	pinMode(TouchCsPin, OUTPUT_HIGH);
-	pinMode(TouchDinPin, OUTPUT_HIGH);
+	SetDriveStrength(TouchCsPin, 2);
+	pinMode(TouchDinPin, OUTPUT_LOW);
+	SetDriveStrength(TouchDinPin, 2);
 	pinMode(TouchDoutPin, INPUT);
 	pinMode(TouchIrqPin, INPUT_PULLUP);
-
-	delay(10);
-	uint16_t dummy16;
-	getTouchData(false, dummy16);
 }
 
 // If the panel is touched, return the coordinates in x and y and return true; else return false
@@ -208,7 +216,6 @@ bool TouchPanel::Read(uint16_t &px, uint16_t &py, bool &repeat, uint16_t * null 
 		}
 		fastDigitalWriteHigh(TouchCsPin);
 	}
-
 
 	if (ret && pressed)
 	{
